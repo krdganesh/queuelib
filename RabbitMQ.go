@@ -36,11 +36,15 @@ func getChannel(rabbitmq *RabbitMQ, conn *amqp.Connection) (result bool, err err
 
 // Publish : Function publishes the message using existing connection object.
 // Input Parameters
-//        pub  : struct *PublishStruct
-func (rabbitmq *RabbitMQ) Publish(pub *PublishStruct) (result bool, err error) {
+//        pub  : struct PublishStruct
+func (rabbitmq *RabbitMQ) Publish(pub PublishStruct) (result bool, err error) {
 	if rabbitmq == nil || rabbitmq.Channel == nil {
 		return false, ErrCursor
 	}
+	// ch, _ := rabbitmq.Connection.Channel()
+	// defer ch.Close()
+	// err = ch.Publish(pub.exchange, pub.key, pub.mandatory, pub.immediate, pub.msg)
+
 	err = rabbitmq.Channel.Publish(pub.exchange, pub.key, pub.mandatory, pub.immediate, pub.msg)
 	if err != nil {
 		return false, err
@@ -48,13 +52,18 @@ func (rabbitmq *RabbitMQ) Publish(pub *PublishStruct) (result bool, err error) {
 	return true, nil
 }
 
-// Subscribe : Function consumes the message using existing connection object.
+// Subscribe : Function consumes the messages using existing connection object.
 // Input Parameters
-//        sub  : struct *SubscribeStruct
-func (rabbitmq *RabbitMQ) Subscribe(sub *SubscribeStruct) (delivery <-chan amqp.Delivery, err error) {
+//        sub  : struct SubscribeStruct
+func (rabbitmq *RabbitMQ) Subscribe(sub SubscribeStruct) (delivery <-chan amqp.Delivery, err error) {
 	if rabbitmq == nil || rabbitmq.Channel == nil {
 		return nil, ErrCursor
 	}
+	// ch, _ := rabbitmq.Connection.Channel()
+	// defer ch.Close()
+	// ch.Qos(sub.prefetchCount, sub.prefetchSize, sub.global)
+
+	rabbitmq.Channel.Qos(sub.prefetchCount, sub.prefetchSize, sub.global)
 
 	msgs, err := rabbitmq.Channel.Consume(
 		sub.queue,
@@ -70,4 +79,37 @@ func (rabbitmq *RabbitMQ) Subscribe(sub *SubscribeStruct) (delivery <-chan amqp.
 		return nil, err
 	}
 	return msgs, nil
+}
+
+// Get : Function gets a message using existing connection object.
+// Input Parameters
+//        get  : struct GetStruct
+func (rabbitmq *RabbitMQ) Get(get GetStruct) (msg amqp.Delivery, ok bool, err error) {
+	if rabbitmq == nil || rabbitmq.Channel == nil {
+		return amqp.Delivery{}, false, ErrCursor
+	}
+	// ch, _ := rabbitmq.Connection.Channel()
+	// defer ch.Close()
+
+	msg, ok, err = rabbitmq.Channel.Get(
+		get.queue,
+		get.autoAck,
+	)
+
+	if err != nil || ok == false {
+		return amqp.Delivery{}, ok, err
+	}
+	return msg, ok, nil
+}
+
+// Acknowledge : Function acknowledges a message using existing connection object.
+// Input Parameters
+//        DeliveryTag  : uint64
+func (rabbitmq *RabbitMQ) Acknowledge(DeliveryTag uint64) (result bool, err error) {
+	// ch, err := rabbitmq.Connection.Channel()
+	err = rabbitmq.Channel.Ack(DeliveryTag, true)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }

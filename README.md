@@ -28,12 +28,30 @@ result, err := rmq.Connect(config)
 	},
 }
 
-result, err := rmq.Publish(&pubStruct)
+result, err := rmq.Publish(pubStruct)
+```
+## Publish with Delay
+```
+//To use the delay feature, an exchange with type 'x-delayed-message' must be there.
+
+var pubDelayStruct = PublishStruct{
+	exchange:  "amqp.delay",
+	key:       "testKey",
+	mandatory: false,
+	immediate: false,
+	msg: amqp.Publishing{
+		ContentType: "text/plain",
+		Body:        []byte("Testing Delayed Publish()"),
+		Headers: amqp.Table{
+			"x-delay": "15000", //15 sec. delay
+		},
+	},
+}
 ```
 
-## Subscribing Queue
+## Subscribing Queue and Acknowledge
 ```
-var subscribeStruct = SubscribeStruct{
+var subStruct = SubscribeStruct{
 	queue:     "testQueue",
 	consumer:  "",
 	autoAck:   false,
@@ -44,13 +62,27 @@ var subscribeStruct = SubscribeStruct{
 }
 
 chForever := make(chan bool)
-msgs, err := rmq.Subscribe(&subscribeStruct)
+msgs, err := rmq.Subscribe(subStruct)
 go func() {
 	for msg := range msgs {
 		log.Printf("Received a message: %s", msg.Body)
+		result, err := rmq.Acknowledge(msg.DeliveryTag)
 	}
 }()
 <-chForever
+```
+
+## Get a Message and Acknowledge
+```
+var getStruct = GetStruct{
+	queue:   "testQueue",
+	autoAck: false,
+}
+
+msg, ok, err := rmq.Get(getStruct)
+log.Printf("Got a message: %s", msg.Body)
+
+result, err := rmq.Acknowledge(msg.DeliveryTag)
 ```
 
 # Project Details

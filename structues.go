@@ -23,6 +23,12 @@ type RabbitMQ struct {
 //Config : This struct is used to define all neccessary parameters required by Supported Queue Client i.e. RabbitMQ (As of now)
 type Config struct {
 	ConString string
+	Scheme    string
+	Host      string
+	Port      int
+	Username  string
+	Password  string
+	Vhost     string
 }
 
 //PublishStruct : This struct is a input parameter for Publish()
@@ -32,15 +38,25 @@ type PublishStruct struct {
 	mandatory bool
 	immediate bool
 	msg       amqp.Publishing
+	delay     uint64
 }
 
-//SubscribeStruct : This struct is a input parameter for Consume()
+//SubscribeStruct : This struct is a input parameter for Subscribe()
 type SubscribeStruct struct {
-	queue     string
-	consumer  string
-	autoAck   bool
-	exclusive bool
-	noLocal   bool
-	noWait    bool
-	args      amqp.Table
+	queue         string
+	consumer      string
+	autoAck       bool
+	exclusive     bool
+	noLocal       bool
+	noWait        bool
+	args          amqp.Table
+	prefetchCount int
+	prefetchSize  int
+	global        bool //apply prefetch settings to all channels - across all consumers
+}
+
+//GetStruct : This struct is a input parameter for Get()
+type GetStruct struct {
+	queue   string
+	autoAck bool
 }
