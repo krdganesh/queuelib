@@ -2,11 +2,14 @@ package queuelib
 
 import (
 	"log"
+	"strconv"
 	"testing"
 
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
+
+var messagesCount = 100000 //No. of messages to be published
 
 var config = &Config{
 	ConString: "amqp://guest:guest@localhost:5672/",
@@ -27,7 +30,21 @@ var pubStruct = PublishStruct{
 	},
 }
 
-var subscribeStruct = SubscribeStruct{
+var pubDelayStruct = PublishStruct{
+	exchange:  "amqp.delay",
+	key:       "testKey",
+	mandatory: false,
+	immediate: false,
+	msg: amqp.Publishing{
+		ContentType: "text/plain",
+		Body:        []byte("Testing Delayed Publish()"),
+		Headers: amqp.Table{
+			"x-delay": "15000", //15 sec. delay
+		},
+	},
+}
+
+var subStruct = SubscribeStruct{
 	queue:     "testQueue",
 	consumer:  "",
 	autoAck:   false,
@@ -35,6 +52,11 @@ var subscribeStruct = SubscribeStruct{
 	noLocal:   false,
 	noWait:    false,
 	args:      nil,
+}
+
+var getStruct = GetStruct{
+	queue:   "testQueue",
+	autoAck: false,
 }
 
 var rmq = new(RabbitMQ)
@@ -83,28 +105,68 @@ func TestGetChannel(t *testing.T) {
 
 //It will test all scenarios of Publish()
 func TestPublish(t *testing.T) {
-	r, err := rmqIncorrect.Publish(&pubStruct)
+	r, err := rmqIncorrect.Publish(pubStruct)
 	assert.NotNil(t, err)
 	assert.Equal(t, false, r)
 
-	result, err := rmq.Publish(&pubStruct)
+	//Publishing delayed message
+	result, err := rmq.Publish(pubDelayStruct)
+	assert.Nil(t, err)
+	assert.Equal(t, true, result)
+
+	//Publishing normal messages
+	chStop := make(chan bool)
+	for i := 1; i <= messagesCount; i++ {
+		go func(i int) {
+			pubStruct.msg.Body = []byte("Testing message - " + strconv.Itoa(i))
+			result, err := rmq.Publish(pubStruct)
+			if i == messagesCount {
+				assert.Nil(t, err)
+				assert.Equal(t, true, result)
+				chStop <- true
+			}
+		}(i)
+	}
+	<-chStop
+}
+
+//It will test all scenarios of Get()
+func TestGet(t *testing.T) {
+	r, ok, err := rmqIncorrect.Get(getStruct)
+	assert.NotNil(t, err)
+	assert.Equal(t, false, ok)
+	assert.Nil(t, r.Body)
+
+	msg, ok, err := rmq.Get(getStruct)
+	log.Printf("Got a message: %s", msg.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, true, ok)
+	assert.NotNil(t, msg.Body)
+
+	result, err := rmq.Acknowledge(msg.DeliveryTag)
 	assert.Nil(t, err)
 	assert.Equal(t, true, result)
 }
 
-//It will test all scenarios of Subscribe()
+// It will test all scenarios of Subscribe()
 func TestSubscribe(t *testing.T) {
-	r, err := rmqIncorrect.Subscribe(&subscribeStruct)
+	r, err := rmqIncorrect.Subscribe(subStruct)
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
 
 	chStop := make(chan bool)
-	msgs, err := rmq.Subscribe(&subscribeStruct)
+	msgs, err := rmq.Subscribe(subStruct)
+	subCounter := 1
 	go func() {
 		for msg := range msgs {
-			log.Printf("Received a message: %s", msg.Body)
-			chStop <- true
-			break
+			log.Printf("Subscribed a message: %s", msg.Body)
+			result, err := rmq.Acknowledge(msg.DeliveryTag)
+			assert.Nil(t, err)
+			assert.Equal(t, true, result)
+			if subCounter == (messagesCount) {
+				chStop <- true
+			}
+			subCounter++
 		}
 	}()
 	result := <-chStop
