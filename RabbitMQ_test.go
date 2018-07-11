@@ -5,11 +5,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
 )
 
-var messagesCount = 100000 //No. of messages to be published
+var messagesCount = 10000 //No. of messages to be published
 
 var config = &Config{
 	ConString: "amqp://guest:guest@localhost:5672/",
@@ -20,43 +19,36 @@ var configIncorrect = &Config{
 }
 
 var pubStruct = PublishStruct{
-	exchange:  "testExchange",
-	key:       "",
-	mandatory: false,
-	immediate: false,
-	msg: amqp.Publishing{
-		ContentType: "text/plain",
-		Body:        []byte("Testing Publish()"),
-	},
+	Exchange:    "testExchange",
+	Key:         "",
+	Mandatory:   false,
+	Immediate:   false,
+	ContentType: "text/plain",
+	Message:     []byte("Testing Publish()"),
 }
 
 var pubDelayStruct = PublishStruct{
-	exchange:  "amqp.delay",
-	key:       "testKey",
-	mandatory: false,
-	immediate: false,
-	msg: amqp.Publishing{
-		ContentType: "text/plain",
-		Body:        []byte("Testing Delayed Publish()"),
-		Headers: amqp.Table{
-			"x-delay": "15000", //15 sec. delay
-		},
-	},
+	Exchange:    "amqp.delay",
+	Key:         "testKey",
+	Mandatory:   false,
+	Immediate:   false,
+	ContentType: "text/plain",
+	Message:     []byte("Testing Delayed Publish()"),
+	Delay:       15000, //15 sec. delay
 }
 
 var subStruct = SubscribeStruct{
-	queue:     "testQueue",
-	consumer:  "",
-	autoAck:   false,
-	exclusive: false,
-	noLocal:   false,
-	noWait:    false,
-	args:      nil,
+	Queue:     "testQueue",
+	Consumer:  "",
+	AutoAck:   false,
+	Exclusive: false,
+	NoLocal:   false,
+	NoWait:    false,
 }
 
 var getStruct = GetStruct{
-	queue:   "testQueue",
-	autoAck: false,
+	Queue:   "testQueue",
+	AutoAck: false,
 }
 
 var rmq = new(RabbitMQ)
@@ -109,6 +101,10 @@ func TestPublish(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, false, r)
 
+	r1, err := rmq.Connect(config)
+	assert.Nil(t, err)
+	assert.Equal(t, true, r1)
+
 	//Publishing delayed message
 	result, err := rmq.Publish(pubDelayStruct)
 	assert.Nil(t, err)
@@ -118,11 +114,11 @@ func TestPublish(t *testing.T) {
 	chStop := make(chan bool)
 	for i := 1; i <= messagesCount; i++ {
 		go func(i int) {
-			pubStruct.msg.Body = []byte("Testing message - " + strconv.Itoa(i))
+			pubStruct.Message = []byte("Testing message - " + strconv.Itoa(i))
 			result, err := rmq.Publish(pubStruct)
+			assert.Nil(t, err)
+			assert.Equal(t, true, result)
 			if i == messagesCount {
-				assert.Nil(t, err)
-				assert.Equal(t, true, result)
 				chStop <- true
 			}
 		}(i)
