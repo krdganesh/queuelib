@@ -1,6 +1,8 @@
 package queuelib
 
 import (
+	"strconv"
+
 	"github.com/streadway/amqp"
 )
 
@@ -45,7 +47,17 @@ func (rabbitmq *RabbitMQ) Publish(pub PublishStruct) (result bool, err error) {
 	// defer ch.Close()
 	// err = ch.Publish(pub.exchange, pub.key, pub.mandatory, pub.immediate, pub.msg)
 
-	err = rabbitmq.Channel.Publish(pub.exchange, pub.key, pub.mandatory, pub.immediate, pub.msg)
+	msg := amqp.Publishing{
+		ContentType: pub.ContentType,
+		Body:        pub.Message,
+	}
+	if pub.Delay > 0 {
+		msg.Headers = amqp.Table{
+			"x-delay": strconv.FormatUint(pub.Delay, 10), //Delay in milliseconds
+		}
+	}
+
+	err = rabbitmq.Channel.Publish(pub.Exchange, pub.Key, pub.Mandatory, pub.Immediate, msg)
 	if err != nil {
 		return false, err
 	}
@@ -55,7 +67,7 @@ func (rabbitmq *RabbitMQ) Publish(pub PublishStruct) (result bool, err error) {
 // Subscribe : Function consumes the messages using existing connection object.
 // Input Parameters
 //        sub  : struct SubscribeStruct
-func (rabbitmq *RabbitMQ) Subscribe(sub SubscribeStruct) (delivery <-chan amqp.Delivery, err error) {
+func (rabbitmq *RabbitMQ) Subscribe(sub SubscribeStruct) (delivery <-chan Delivery, err error) {
 	if rabbitmq == nil || rabbitmq.Channel == nil {
 		return nil, ErrCursor
 	}
@@ -63,43 +75,43 @@ func (rabbitmq *RabbitMQ) Subscribe(sub SubscribeStruct) (delivery <-chan amqp.D
 	// defer ch.Close()
 	// ch.Qos(sub.prefetchCount, sub.prefetchSize, sub.global)
 
-	rabbitmq.Channel.Qos(sub.prefetchCount, sub.prefetchSize, sub.global)
+	rabbitmq.Channel.Qos(sub.PrefetchCount, sub.PrefetchSize, sub.ApplyPrefetchGlobally)
 
 	msgs, err := rabbitmq.Channel.Consume(
-		sub.queue,
-		sub.consumer,
-		sub.autoAck,
-		sub.exclusive,
-		sub.noLocal,
-		sub.noWait,
-		sub.args,
+		sub.Queue,
+		sub.Consumer,
+		sub.AutoAck,
+		sub.Exclusive,
+		sub.NoLocal,
+		sub.NoLocal,
+		nil,
 	)
 
 	if err != nil {
 		return nil, err
 	}
-	return msgs, nil
+	return castDeliveryCh(msgs), nil
 }
 
 // Get : Function gets a message using existing connection object.
 // Input Parameters
 //        get  : struct GetStruct
-func (rabbitmq *RabbitMQ) Get(get GetStruct) (msg amqp.Delivery, ok bool, err error) {
+func (rabbitmq *RabbitMQ) Get(get GetStruct) (msg Delivery, ok bool, err error) {
 	if rabbitmq == nil || rabbitmq.Channel == nil {
-		return amqp.Delivery{}, false, ErrCursor
+		return Delivery{}, false, ErrCursor
 	}
 	// ch, _ := rabbitmq.Connection.Channel()
 	// defer ch.Close()
 
-	msg, ok, err = rabbitmq.Channel.Get(
-		get.queue,
-		get.autoAck,
+	delivery, ok, err := rabbitmq.Channel.Get(
+		get.Queue,
+		get.AutoAck,
 	)
 
 	if err != nil || ok == false {
-		return amqp.Delivery{}, ok, err
+		return Delivery{}, ok, err
 	}
-	return msg, ok, nil
+	return castDelivery(delivery), ok, nil
 }
 
 // Acknowledge : Function acknowledges a message using existing connection object.
@@ -112,4 +124,56 @@ func (rabbitmq *RabbitMQ) Acknowledge(DeliveryTag uint64) (result bool, err erro
 		return false, err
 	}
 	return true, nil
+}
+
+func castDelivery(delivery amqp.Delivery) Delivery {
+	return Delivery{
+		delivery.ContentType,
+		delivery.ContentEncoding,
+		delivery.DeliveryMode,
+		delivery.Priority,
+		delivery.CorrelationId,
+		delivery.ReplyTo,
+		delivery.Expiration,
+		delivery.MessageId,
+		delivery.Timestamp,
+		delivery.Type,
+		delivery.UserId,
+		delivery.AppId,
+		delivery.ConsumerTag,
+		delivery.MessageCount,
+		delivery.DeliveryTag,
+		delivery.Redelivered,
+		delivery.Exchange,
+		delivery.RoutingKey,
+		delivery.Body,
+	}
+}
+
+func castDeliveryCh(delivery <-chan amqp.Delivery) <-chan Delivery {
+	amqpDel := <-delivery
+	del := Delivery{
+		amqpDel.ContentType,
+		amqpDel.ContentEncoding,
+		amqpDel.DeliveryMode,
+		amqpDel.Priority,
+		amqpDel.CorrelationId,
+		amqpDel.ReplyTo,
+		amqpDel.Expiration,
+		amqpDel.MessageId,
+		amqpDel.Timestamp,
+		amqpDel.Type,
+		amqpDel.UserId,
+		amqpDel.AppId,
+		amqpDel.ConsumerTag,
+		amqpDel.MessageCount,
+		amqpDel.DeliveryTag,
+		amqpDel.Redelivered,
+		amqpDel.Exchange,
+		amqpDel.RoutingKey,
+		amqpDel.Body,
+	}
+	chDel := make(chan Delivery)
+	chDel <- del
+	return (<-chan Delivery)(chDel)
 }
