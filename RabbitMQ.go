@@ -86,7 +86,6 @@ func (rabbitmq *RabbitMQ) Subscribe(sub SubscribeStruct) (delivery <-chan Delive
 		sub.NoLocal,
 		nil,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -117,9 +116,9 @@ func (rabbitmq *RabbitMQ) Get(get GetStruct) (msg Delivery, ok bool, err error) 
 // Acknowledge : Function acknowledges a message using existing connection object.
 // Input Parameters
 //        DeliveryTag  : uint64
-func (rabbitmq *RabbitMQ) Acknowledge(DeliveryTag uint64) (result bool, err error) {
+func (rabbitmq *RabbitMQ) Acknowledge(delivery Delivery) (result bool, err error) {
 	// ch, err := rabbitmq.Connection.Channel()
-	err = rabbitmq.Channel.Ack(DeliveryTag, true)
+	err = rabbitmq.Channel.Ack(delivery.DeliveryTag, true)
 	if err != nil {
 		return false, err
 	}
@@ -151,29 +150,33 @@ func castDelivery(delivery amqp.Delivery) Delivery {
 }
 
 func castDeliveryCh(delivery <-chan amqp.Delivery) <-chan Delivery {
-	amqpDel := <-delivery
-	del := Delivery{
-		amqpDel.ContentType,
-		amqpDel.ContentEncoding,
-		amqpDel.DeliveryMode,
-		amqpDel.Priority,
-		amqpDel.CorrelationId,
-		amqpDel.ReplyTo,
-		amqpDel.Expiration,
-		amqpDel.MessageId,
-		amqpDel.Timestamp,
-		amqpDel.Type,
-		amqpDel.UserId,
-		amqpDel.AppId,
-		amqpDel.ConsumerTag,
-		amqpDel.MessageCount,
-		amqpDel.DeliveryTag,
-		amqpDel.Redelivered,
-		amqpDel.Exchange,
-		amqpDel.RoutingKey,
-		amqpDel.Body,
-	}
 	chDel := make(chan Delivery)
-	chDel <- del
+	go func() {
+		for amqpDel := range delivery {
+			var del Delivery
+			del = Delivery{
+				amqpDel.ContentType,
+				amqpDel.ContentEncoding,
+				amqpDel.DeliveryMode,
+				amqpDel.Priority,
+				amqpDel.CorrelationId,
+				amqpDel.ReplyTo,
+				amqpDel.Expiration,
+				amqpDel.MessageId,
+				amqpDel.Timestamp,
+				amqpDel.Type,
+				amqpDel.UserId,
+				amqpDel.AppId,
+				amqpDel.ConsumerTag,
+				amqpDel.MessageCount,
+				amqpDel.DeliveryTag,
+				amqpDel.Redelivered,
+				amqpDel.Exchange,
+				amqpDel.RoutingKey,
+				amqpDel.Body,
+			}
+			chDel <- del
+		}
+	}()
 	return (<-chan Delivery)(chDel)
 }

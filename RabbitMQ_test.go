@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var messagesCount = 10000 //No. of messages to be published
+var messagesCount = 1000 //No. of messages to be published
 
 var config = &Config{
 	ConString: "amqp://guest:guest@localhost:5672/",
@@ -38,12 +38,13 @@ var pubDelayStruct = PublishStruct{
 }
 
 var subStruct = SubscribeStruct{
-	Queue:     "testQueue",
-	Consumer:  "",
-	AutoAck:   false,
-	Exclusive: false,
-	NoLocal:   false,
-	NoWait:    false,
+	Queue:         "testQueue",
+	Consumer:      "",
+	AutoAck:       false,
+	Exclusive:     false,
+	NoLocal:       false,
+	NoWait:        false,
+	PrefetchCount: 10,
 }
 
 var getStruct = GetStruct{
@@ -139,7 +140,7 @@ func TestGet(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.NotNil(t, msg.Body)
 
-	result, err := rmq.Acknowledge(msg.DeliveryTag)
+	result, err := rmq.Acknowledge(msg)
 	assert.Nil(t, err)
 	assert.Equal(t, true, result)
 }
@@ -150,13 +151,17 @@ func TestSubscribe(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Nil(t, r)
 
+	r1, err := rmq.Connect(config)
+	assert.Nil(t, err)
+	assert.Equal(t, true, r1)
+
 	chStop := make(chan bool)
 	msgs, err := rmq.Subscribe(subStruct)
 	subCounter := 1
 	go func() {
 		for msg := range msgs {
 			log.Printf("Subscribed a message: %s", msg.Body)
-			result, err := rmq.Acknowledge(msg.DeliveryTag)
+			result, err := rmq.Acknowledge(msg)
 			assert.Nil(t, err)
 			assert.Equal(t, true, result)
 			if subCounter == (messagesCount) {
