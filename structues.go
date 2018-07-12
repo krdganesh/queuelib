@@ -12,6 +12,7 @@ type Queue interface {
 	Publish(PublishStruct) (bool, error)
 	Subscribe(SubscribeStruct) (<-chan Delivery, error)
 	Get(GetStruct) (Delivery, bool, error)
+	Acknowledge(Delivery) (bool, error)
 }
 
 //RabbitMQ : Pointer to this struct is retured in Init() if input QueueType is "rabbitmq"
@@ -56,7 +57,7 @@ type SubscribeStruct struct {
 	Exclusive             bool
 	NoLocal               bool
 	NoWait                bool
-	PrefetchCount         int
+	PrefetchCount         int //Allows batching of messages
 	PrefetchSize          int
 	ApplyPrefetchGlobally bool //apply prefetch settings to all channels - across all consumers
 }
