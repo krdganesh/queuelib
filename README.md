@@ -1,5 +1,5 @@
 # Queuelib - Golang, RabbitMQ
->### This is comman queue library. It currently supports RabbitMQ.
+>### This is common queue library. It currently supports RabbitMQ.
 
 ## Getting queuelib
 ```
