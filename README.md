@@ -13,7 +13,7 @@ rmq, err := queuelib.Init("rabbitmq")
 
 ## Connect to Queue
 ```
-config := Config{
+config := &queuelib.Config{
 	ConString: "amqp://guest:guest@localhost:5672/",
 }
 
