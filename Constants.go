@@ -5,8 +5,7 @@ import "errors"
 const (
 	//RABBITMQ : This is used in Factory
 	RABBITMQ = "rabbitmq"
-
-	//KAFKA    = "kafka"
+	KAFKA    = "kafka"
 )
 
 var (

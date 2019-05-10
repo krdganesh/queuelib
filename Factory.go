@@ -5,7 +5,10 @@ func Init(QueueType string) (Queue, error) {
 	switch QueueType {
 	case RABBITMQ:
 		return new(RabbitMQ), nil
-	default:
-		return nil, ErrorInvalidQueue
+		break
+	case KAFKA:
+		return new(Kafka), nil
+		break
 	}
+	return nil, ErrorInvalidQueue
 }

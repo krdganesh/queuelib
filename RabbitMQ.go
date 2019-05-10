@@ -127,25 +127,25 @@ func (rabbitmq *RabbitMQ) Acknowledge(delivery Delivery) (result bool, err error
 
 func castDelivery(delivery amqp.Delivery) Delivery {
 	return Delivery{
-		delivery.ContentType,
-		delivery.ContentEncoding,
-		delivery.DeliveryMode,
-		delivery.Priority,
-		delivery.CorrelationId,
-		delivery.ReplyTo,
-		delivery.Expiration,
-		delivery.MessageId,
-		delivery.Timestamp,
-		delivery.Type,
-		delivery.UserId,
-		delivery.AppId,
-		delivery.ConsumerTag,
-		delivery.MessageCount,
-		delivery.DeliveryTag,
-		delivery.Redelivered,
-		delivery.Exchange,
-		delivery.RoutingKey,
-		delivery.Body,
+		ContentType:     delivery.ContentType,
+		ContentEncoding: delivery.ContentEncoding,
+		DeliveryMode:    delivery.DeliveryMode,
+		Priority:        delivery.Priority,
+		CorrelationID:   delivery.CorrelationId,
+		ReplyTo:         delivery.ReplyTo,
+		Expiration:      delivery.Expiration,
+		MessageID:       delivery.MessageId,
+		Timestamp:       delivery.Timestamp,
+		Type:            delivery.Type,
+		UserID:          delivery.UserId,
+		AppID:           delivery.AppId,
+		ConsumerTag:     delivery.ConsumerTag,
+		MessageCount:    delivery.MessageCount,
+		DeliveryTag:     delivery.DeliveryTag,
+		Redelivered:     delivery.Redelivered,
+		Exchange:        delivery.Exchange,
+		RoutingKey:      delivery.RoutingKey,
+		Body:            delivery.Body,
 	}
 }
 
@@ -153,28 +153,7 @@ func castDeliveryCh(delivery <-chan amqp.Delivery) <-chan Delivery {
 	chDel := make(chan Delivery)
 	go func() {
 		for amqpDel := range delivery {
-			var del Delivery
-			del = Delivery{
-				amqpDel.ContentType,
-				amqpDel.ContentEncoding,
-				amqpDel.DeliveryMode,
-				amqpDel.Priority,
-				amqpDel.CorrelationId,
-				amqpDel.ReplyTo,
-				amqpDel.Expiration,
-				amqpDel.MessageId,
-				amqpDel.Timestamp,
-				amqpDel.Type,
-				amqpDel.UserId,
-				amqpDel.AppId,
-				amqpDel.ConsumerTag,
-				amqpDel.MessageCount,
-				amqpDel.DeliveryTag,
-				amqpDel.Redelivered,
-				amqpDel.Exchange,
-				amqpDel.RoutingKey,
-				amqpDel.Body,
-			}
+			del := castDelivery(amqpDel)
 			chDel <- del
 		}
 	}()

@@ -3,6 +3,7 @@ package queuelib
 import (
 	"time"
 
+	kafka "github.com/segmentio/kafka-go"
 	"github.com/streadway/amqp"
 )
 
@@ -21,32 +22,35 @@ type RabbitMQ struct {
 	Channel    *amqp.Channel
 }
 
-//Sample Queue Type
-//type Kafka struct{
-//
-//}
+//RabbitMQ : Pointer to this struct is retured in Init() if input QueueType is "rabbitmq"
+type Kafka struct {
+	Connection *kafka.Conn
+}
 
 //Config : This struct is used to define all neccessary parameters required by Supported Queue Client i.e. RabbitMQ (As of now)
 type Config struct {
-	ConString string
-	Scheme    string
-	Host      string
-	Port      int
-	Username  string
-	Password  string
-	Vhost     string
+	ConString      string
+	Scheme         string
+	Host           string
+	Port           int
+	Username       string
+	Password       string
+	Vhost          string
+	KafkaTopic     string
+	KafkaPartition int
 }
 
 //PublishStruct : This struct is an input parameter for Publish()
 type PublishStruct struct {
-	Exchange    string
-	Key         string
-	Mandatory   bool
-	Immediate   bool
-	Message     []byte
-	ContentType string
-	DeliveryTag uint64
-	Delay       uint64 //Delay in milliseconds
+	Exchange              string
+	Key                   string
+	Mandatory             bool
+	Immediate             bool
+	Message               []byte
+	ContentType           string
+	DeliveryTag           uint64
+	Delay                 uint64 //Delay in milliseconds
+	KafkaTimeoutInSeconds time.Duration
 }
 
 //SubscribeStruct : This struct is an input parameter for Subscribe()
@@ -60,6 +64,9 @@ type SubscribeStruct struct {
 	PrefetchCount         int //Allows batching of messages
 	PrefetchSize          int
 	ApplyPrefetchGlobally bool //apply prefetch settings to all channels - across all consumers
+	KafkaTopic            string
+	KafkaConsumerGroupID  string
+	KafkaBrokers          []string
 }
 
 //GetStruct : This struct is an input parameter for Get()
@@ -98,4 +105,8 @@ type Delivery struct {
 	RoutingKey  string // basic.publish routing key
 
 	Body []byte
+
+	KafkaTopic     string
+	KafkaPartition int
+	KafkaKey       []byte
 }
